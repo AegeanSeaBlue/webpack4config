@@ -1,36 +1,54 @@
-const path = require('path');
-const VueLoaderPlugin = require('vue-loader/lib/plugin');
-const CleanWebpackPlugin = require('clean-webpack-plugin');
-const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const htmlWebpackPlugin = require('html-webpack-plugin');
-//const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
-//const webpack = require('webpack');
+var path = require('path')
+var webpack = require('webpack')
+
+var htmlWebpackPlugin = require('html-webpack-plugin');
+var MinCssExtractPlugin = require('mini-css-extract-plugin');
+var CleanWebpackPlugin = require('clean-webpack-plugin');
 const ParallelUglify = require('webpack-parallel-uglify-plugin');
-const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+var OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+
+function fillDouble(input) {
+    return input < 10 ? '0' + input : input;
+}
+
+var releaseTime = new Date();
+var version = '' + releaseTime.getFullYear() + fillDouble(releaseTime.getMonth() + 1) + fillDouble(releaseTime.getDate()) + fillDouble(releaseTime.getHours()) + fillDouble(releaseTime.getMinutes());
 
 module.exports = {
     mode: 'production',
-    entry: './src/main.js',
+    stats: {
+        children: false
+    },
+    entry: {
+        'main': './src/main.js'
+    },
     output: {
         path: path.resolve(__dirname, './build/dist'),
-        publicPath: '/dist/',
-        filename: 'js/[name].[hash].js',
-        chunkFilename: 'js/[name].[hash].js',
+        publicPath: '/v2/dist/',
+        // 入口文件名称
+        filename: 'js/[name].[chunkhash].js',
+
+        // 非入口、按需加载模块时输出的文件名称
+        chunkFilename: 'js/[name].[chunkhash].js',
         libraryTarget: 'umd',
         umdNamedDefine: true
     },
     module: {
-        rules: [
-            {
+        rules: [{
                 test: /\.css$/,
                 use: [
-                    MiniCssExtractPlugin.loader,
+                    MinCssExtractPlugin.loader,
                     'css-loader'
-                ]
-            },
-            {
+                ],
+            }, {
                 test: /\.vue$/,
-                loader: 'vue-loader'
+                loader: 'vue-loader',
+                options: {
+                    loaders: {
+                        i18n: '@kazupon/vue-i18n-loader'
+                    }
+                    // other vue-loader options go here
+                }
             },
             {
                 test: /\.js$/,
@@ -41,11 +59,11 @@ module.exports = {
                 test: /\.(eot|svg|ttf|woff|woff2)(\?\S*)?$/,
                 loader: 'file-loader',
                 options: {
-                    name: 'font/[name].[ext]?[hash]'
+                    name: 'fonts/[name].[ext]?[hash]'
                 }
             },
             {
-                test: /\.(png|jpg|gif|svg)$/,
+                test: /\.(png|jpg|gif)$/,
                 loader: 'file-loader',
                 options: {
                     name: 'images/[name].[ext]?[hash]'
@@ -53,14 +71,15 @@ module.exports = {
             }
         ]
     },
-    devtool: false,
     resolve: {
         alias: {
-            'vue$': 'vue/dist/vue.esm.js',
-            '@': __dirname + '/src/components/',
+            'Vue$': 'vue/dist/vue.esm.js',
+            '@': __dirname + '/src/',
         },
         extensions: ['*', '.js', '.vue', '.json']
     },
+
+    //配置第三方文件
     externals: {
         Vue: {
             root: 'Vue',
@@ -80,34 +99,39 @@ module.exports = {
         minimizer: [
             new OptimizeCSSAssetsPlugin({})
         ],
-        splitChunks: {
-            cacheGroups: {
-                commons: {
-                    name: 'commons',
-                    chunks: "initial",
-                    minChunks: 2
-                }
-            }
-        }
+        // splitChunks: {
+        //     cacheGroups: {
+        //         commons: {
+        //             name: 'commons',
+        //             chunks: "initial",
+        //             minChunks: 2
+        //         }
+        //     }
+        // }
     },
+    //配置插件
     plugins: [
 
+        //调用插件，情况build目录
         new CleanWebpackPlugin(['./build']),
-        new VueLoaderPlugin(),
-        new MiniCssExtractPlugin({
-            filename: "css/[name].[hash].css",
-            chunkFilename: 'css/[name].[hash].css'
-        }),
 
+        //调用htmlwebpackplugin，设置模板相关的属性
         new htmlWebpackPlugin({
             //设置生成文件
             filename: __dirname + '/build/index.html',
             //设置html模板文件
-            template: 'template/build.html',
+            template: 'tmpl/index.html',
             //指定script标签注入位置
             inject: 'body',
             chunks: ['main'],
             favicon: './favicon.ico'
+        }),
+
+        //抽离css文件
+        new MinCssExtractPlugin({
+            //给分离出来的css文件命名
+            filename: "css/[name].[hash].css",
+            allChunks: true
         }),
 
         new ParallelUglify({
@@ -150,8 +174,8 @@ module.exports = {
                 }
             }
         }),
-/*
         new webpack.LoaderOptionsPlugin({
+            // test: /\.xxx$/, // may apply this only for some modules
             options: {
                 //设置静态资源目录static
                 build: {
@@ -160,7 +184,8 @@ module.exports = {
                 },
             }
         })
-*/
+
+
     ],
     devServer: {
         historyApiFallback: true,
@@ -170,16 +195,38 @@ module.exports = {
             '/wayio/': {
                 //target: 'http://47.95.197.120:1023/',
                 //target: 'http://192.168.5.17:8080/',
-                target: 'http://192.168.2.23:8083/',
-                //target: 'http://52.201.230.133:8080/',
-                //target: 'https://platformuat.way.io',
+                //target: 'http://192.168.2.23:8083/',
+                target: 'https://platformuat.way.io',
                 secure: false,
                 changeOrigin: true
-            }
+            },
+            '/wayio/v2/': {
+                //target: 'http://47.95.197.120:1023/',
+                target: 'http://192.168.5.17:8080/wayio/v2/',
+                //target: 'http://192.168.2.23:8083/',
+                secure: false,
+                changeOrigin: true
+            },
         }
     },
     performance: {
         hints: false
     },
-};
+    devtool: false,
+}
 
+if (process.env.NODE_ENV === 'production') {
+    //module.exports.devtool = '#source-map'
+    // http://vue-loader.vuejs.org/en/workflow/production.html
+    module.exports.plugins = (module.exports.plugins || []).concat([
+        new webpack.DefinePlugin({
+            'process.env': {
+                NODE_ENV: '"production"'
+            }
+        }),
+
+        new webpack.LoaderOptionsPlugin({
+            minimize: true
+        })
+    ])
+}
