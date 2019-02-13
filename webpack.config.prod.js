@@ -8,14 +8,29 @@ const htmlWebpackPlugin = require('html-webpack-plugin');
 const ParallelUglify = require('webpack-parallel-uglify-plugin');
 const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
 
+
+function fillDouble (input) {
+    return input < 10 ? '0' + input : input;
+}
+
+var releaseTime = new Date();
+var version = '' + releaseTime.getFullYear() + fillDouble(releaseTime.getMonth() + 1) + fillDouble(releaseTime.getDate()) + fillDouble(releaseTime.getHours()) + fillDouble(releaseTime.getMinutes());
+
+
 module.exports = {
     mode: 'production',
     entry: './src/main.js',
     output: {
-        path: path.resolve(__dirname, './build/dist'),
-        publicPath: '/dist/',
-        filename: 'js/[name].[hash].js',
-        chunkFilename: 'js/[name].[hash].js',
+        path: path.resolve(__dirname, './production/dist'),
+
+        // 发布后，资源的引用目录
+        publicPath: '//sfile.yourway.io/dist/',
+
+        // 文件名称
+        filename: 'js/[name].js',
+
+        // 按需加载模块时输出的文件名称
+        chunkFilename: 'js/[name].js?v=' + version,
         libraryTarget: 'umd',
         umdNamedDefine: true
     },
@@ -53,7 +68,6 @@ module.exports = {
             }
         ]
     },
-    devtool: false,
     resolve: {
         alias: {
             'vue$': 'vue/dist/vue.esm.js',
@@ -75,6 +89,7 @@ module.exports = {
             amd: 'Vuetify'
         },
     },
+    //配置插件
     optimization: {
         minimize: true,
         minimizer: [
@@ -92,23 +107,26 @@ module.exports = {
     },
     plugins: [
 
-        new CleanWebpackPlugin(['./build']),
+        //调用插件，情况build目录
+        new CleanWebpackPlugin(['./production']),
         new VueLoaderPlugin(),
         new MiniCssExtractPlugin({
             filename: "css/[name].[hash].css",
             chunkFilename: 'css/[name].[hash].css'
         }),
 
+        //调用htmlwebpackplugin，设置模板相关的属性
         new htmlWebpackPlugin({
             //设置生成文件
-            filename: __dirname + '/build/index.html',
+            filename: __dirname + '/production/index.html',
             //设置html模板文件
-            template: 'template/build.html',
+            template: 'template/prod.html',
             //指定script标签注入位置
             inject: 'body',
             chunks: ['main'],
             favicon: './favicon.ico'
         }),
+
 
         new ParallelUglify({
             // 传递给 UglifyJS的参数如下：
@@ -150,8 +168,9 @@ module.exports = {
                 }
             }
         }),
-/*
-        new webpack.LoaderOptionsPlugin({
+
+        /*new webpack.LoaderOptionsPlugin({
+            // test: /\.xxx$/, // may apply this only for some modules
             options: {
                 //设置静态资源目录static
                 build: {
@@ -159,12 +178,14 @@ module.exports = {
                     assetsSubDirectory: 'static'
                 },
             }
-        })
-*/
+        })*/
+
+
     ],
     devServer: {
         historyApiFallback: true,
         noInfo: true,
+        overlay: true,
         //配置代理
         proxy: {
             '/wayio/': {
@@ -175,11 +196,12 @@ module.exports = {
                 //target: 'https://platformuat.way.io',
                 secure: false,
                 changeOrigin: true
-            }
+            },
         }
     },
     performance: {
         hints: false
     },
+    devtool: false
 };
 
